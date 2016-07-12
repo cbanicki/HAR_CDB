@@ -45,7 +45,7 @@ ActPred <- function() {
     
     finally={
       
-      ## Read tracking data and remove NA
+      ## Read tracking data 
       training <- read.csv("pml-training.csv", header = TRUE,na.strings = c("NA","#DIV/0!",""))
       
       testing <- read.csv("pml-testing.csv", header = TRUE, na.strings = c("NA","#DIV/0!",""))
@@ -63,6 +63,13 @@ ActPred <- function() {
 #training <- training[,-c(1:7)]
 
 #dim(training)
+
+
+
+#Replace all zeroes with NA to make sure they are not evaluated and to help remove columns that don't add value
+#Remove columns that are entirely NA since that adds no value
+
+#training[training == 0] <- NA
 
 #Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
@@ -121,13 +128,16 @@ set.seed(1000)
 
 TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
 
+startCol <- which( colnames(training)=="num_window") + 1
+
+endCol <- ncol(training)-1
 
 #Set the numeric columns to a mean value when they are NA in each chunk
-avgNAs <- function(Chunk)
-{
+avgNAs <- function(Chunk){
+
+
   
-  
-  for(i in 8:153){
+  for(i in startCol: endCol){
     
     Chunk[is.na(Chunk[,i]), i] <- mean(Chunk[,i], na.rm = TRUE)
     
@@ -135,11 +145,11 @@ avgNAs <- function(Chunk)
   
   return(Chunk)
   
+
 }
 
-
-
 TrainNew <- lapply(TrainChunks,avgNAs)
+
 
 
 # Mix up the chunks randomly so they are not in order of user_name and Classe
@@ -153,6 +163,7 @@ groups = sample(c("train", "train1","validate"),
 
 # Split up the chunked data into groups, one for training and one for validation        
 t_split <- split(TrainNew,f=groups)
+
 
 ##################################################################################################################
 
@@ -170,11 +181,22 @@ training1 <- do.call("rbind",t_split$train1)
 
 training <- rbind(training,training1)
 
+#There is a problem here that if all of the values for a chunk are NA this is converted them to NaN.  
+#If I set them to 0 then it will throw off the calcs by biasing them towards zero
+
+#training[training == NaN] <- 0
+
+
+
 rm(training1)
 
 validate <- do.call("rbind",t_split$validate)
 
+#validate[validate == NaN] <- 0
 
+#Remove columns with constant variances (zero) because they will stop you from doing PCA
+
+#training <- training[,apply(training[,startCol:endCol], 2, var, na.rm=TRUE) != 0]
 
 ###################################################################################################################
 
@@ -182,10 +204,27 @@ validate <- do.call("rbind",t_split$validate)
 
 ###################################################################################################################
 
-typeColor <- training$classe
+training[training == 0] <- NA
 
-preProc <- preProcess(log10(training[,8:153] + 1), method="pca",pcaComp=2)
+#Remove columns that are entirely NA since that adds no value
+training <- training[, colSums(is.na(training)) != nrow(training)]
 
-trainingPC <- predict(preProc, log10(training[,8:153] + 1))
+#Have to rerun this
+startCol <- which( colnames(training)=="num_window") + 1
 
-plot(trainingPC[,1],trainingPC[,2], col=typeColor)
+endCol <- ncol(training)-1
+
+# Having issues getting the principle components from this data.  x must be numeric, probably the NA's 
+
+
+# training.2 <- data.frame(t(na.omit(t(training))))
+# 
+# pca.training.2 <- prcomp(training.2[,3:35], retx=TRUE)
+# 
+# prComp <-prcomp(training[,startCol:endCol])
+# 
+# preProc <- preProcess(training[,startCol:endCol], method="pca",pcaComp=2)
+# 
+# trainingPC <- predict(preProc, log10(training[,startCol:endCol]))
+# 
+# plot(preProc$x[,1],preProc$x[,2],col=typeColor,xlab="PC1",ylab="PC2")
