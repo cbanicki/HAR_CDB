@@ -68,12 +68,16 @@ dim(training)
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
 
-#Set the numeric columns to a mean value when they are NA --- might consider something else here
+# for(i in 8:153){
+#   training[is.na(training[,i]), i] <- mean(training[,i], na.rm = TRUE)
+# }
 
-for(i in 8:159){
-  TrainChunks[is.na(TrainChunks[,i]), i] <- mean(TrainChunks[,i], na.rm = TRUE)
-}
 
+############################################################################################################################
+
+# Preserving the timestamp data 
+
+############################################################################################################################
 
 #Make milliseconds display
 options("digits.secs"=7)
@@ -113,11 +117,28 @@ set.seed(1000)
 TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
 
 
-#Set the numeric columns to a mean value when they are NA --- might consider something else here
-
-for(i in 8:159){
-  TrainChunks[is.na(TrainChunks[,i]), i] <- mean(TrainChunks[,i], na.rm = TRUE)
+#Set the numeric columns to a mean value when they are NA in each chunk
+avgNAs <- function(TrainChunks)
+{
+  for(i in 8:153){
+    
+    TrainChunks[is.na(TrainChunks[,i]), i] <- mean(TrainChunks[,i], na.rm = TRUE)
+    
+    
+    
+  }
+  
+  return(TrainChunks)
 }
+
+
+
+TrainNew <- lapply(TrainChunks,avgNAs)
+
+# 
+# for(i in 8:159){
+#   training[is.na(training[,i]), i] <- mean(training[,i], na.rm = TRUE)
+# }
 
 
 # Mix up the chunks randomly so they are not in order of user_name and Classe
