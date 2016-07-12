@@ -62,20 +62,16 @@ ActPred <- function() {
 #Remove not needed columns
 #training <- training[,-c(1:7)]
 
-dim(training)
+#dim(training)
 
-#Remove columns that are entirely NA
+#Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
-
-
-# for(i in 8:153){
-#   training[is.na(training[,i]), i] <- mean(training[,i], na.rm = TRUE)
-# }
 
 
 ############################################################################################################################
 
-# Preserving the timestamp data 
+# Preserving the timestamp data.  
+# Had to go through all of these steps because for some reason I couldn't just combine the two timestamps to get the valid date info
 
 ############################################################################################################################
 
@@ -105,6 +101,15 @@ training$cvtd_timestamp <-
   )
 
 
+
+############################################################################################################################
+
+#Splitting the data into chunks based on user_name and classe.  The goal is to have a separate data object for each set. 
+#I want this because the classe is assigned at the set level and not the row of the data.
+#Also, for the rows that are NA because they are summary amounts, taking the average for that set and applying it to each row.
+
+############################################################################################################################
+
 library(mlbench)
 library(caret)
 
@@ -118,44 +123,69 @@ TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
 
 
 #Set the numeric columns to a mean value when they are NA in each chunk
-avgNAs <- function(TrainChunks)
+avgNAs <- function(Chunk)
 {
+  
+  
   for(i in 8:153){
     
-    TrainChunks[is.na(TrainChunks[,i]), i] <- mean(TrainChunks[,i], na.rm = TRUE)
-    
-    
+    Chunk[is.na(Chunk[,i]), i] <- mean(Chunk[,i], na.rm = TRUE)
     
   }
   
-  return(TrainChunks)
+  return(Chunk)
+  
 }
 
 
 
 TrainNew <- lapply(TrainChunks,avgNAs)
 
-# 
-# for(i in 8:159){
-#   training[is.na(training[,i]), i] <- mean(training[,i], na.rm = TRUE)
-# }
-
 
 # Mix up the chunks randomly so they are not in order of user_name and Classe
-#    TrainChunks <- sample(TrainChunks)
+TrainNew <- sample(TrainNew)
+
 
 # Create groups for training and validating    
-groups = sample(c("train", "validate"),
-                size = length(TrainChunks), replace = TRUE)
+groups = sample(c("train", "train1","validate"),
+                size = length(TrainNew), replace = TRUE)
+ 
 
 # Split up the chunked data into groups, one for training and one for validation        
-t_split <- split(TrainChunks,f=groups)
+t_split <- split(TrainNew,f=groups)
 
-# Unsplit the groups assign the data back to a data frame        
+##################################################################################################################
+
+#Should I train a model on each of the groups now and then combine them?  Maybe that way it can be a ts analysis?
+
+##################################################################################################################
+
+
+# Unsplit the groups assign the data back to a data frame 
+# Maybe a better way to do this but I don't know it
+
 training <- do.call("rbind",t_split$train)
+
+training1 <- do.call("rbind",t_split$train1)
+
+training <- rbind(training,training1)
+
+rm(training1)
 
 validate <- do.call("rbind",t_split$validate)
 
 
 
+###################################################################################################################
 
+#Pick attributes to use for model (Principle Component Analysis)
+
+###################################################################################################################
+
+typeColor <- training$classe
+
+preProc <- preProcess(log10(training[,8:153] + 1), method="pca",pcaComp=2)
+
+trainingPC <- predict(preProc, log10(training[,8:153] + 1))
+
+plot(trainingPC[,1],trainingPC[,2], col=typeColor)
