@@ -74,6 +74,8 @@ ActPred <- function() {
 #Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
+#Replace NA with zero 
+training[is.na(training)] <- 0
 
 ############################################################################################################################
 
@@ -128,6 +130,7 @@ set.seed(1000)
 
 TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
 
+
 startCol <- which( colnames(training)=="num_window") + 1
 
 endCol <- ncol(training)-1
@@ -140,8 +143,8 @@ avgNAs <- function(Chunk){
   for(i in startCol: endCol){
     
     Chunk[is.na(Chunk[,i]), i] <- mean(Chunk[,i], na.rm = TRUE)
-    
-  }
+ 
+    }
   
   return(Chunk)
   
@@ -204,7 +207,7 @@ validate <- do.call("rbind",t_split$validate)
 
 ###################################################################################################################
 
-training[training == 0] <- NA
+#training[training == 0] <- NA
 
 #Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
@@ -221,7 +224,7 @@ endCol <- ncol(training)-1
 # 
 # pca.training.2 <- prcomp(training.2[,3:35], retx=TRUE)
 # 
-# prComp <-prcomp(training[,startCol:endCol])
+prComp <-prcomp(training[,startCol:endCol])
 # 
 # preProc <- preProcess(training[,startCol:endCol], method="pca",pcaComp=2)
 # 
