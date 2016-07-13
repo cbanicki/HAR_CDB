@@ -60,22 +60,18 @@ ActPred <- function() {
 
 # Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in ???ve di???erent fashions: exactly according to the speci???cation (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Class A corresponds to the speci???ed execution of the exercise, while the other 4 classes correspond to common mistakes.
 #Remove not needed columns
-#training <- training[,-c(1:7)]
-
-#dim(training)
-
 
 
 #Replace all zeroes with NA to make sure they are not evaluated and to help remove columns that don't add value
 #Remove columns that are entirely NA since that adds no value
 
-#training[training == 0] <- NA
+training[training == 0] <- NA
 
 #Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
 #Replace NA with zero 
-training[is.na(training)] <- 0
+#training[is.na(training)] <- 0
 
 ############################################################################################################################
 
@@ -184,22 +180,11 @@ training1 <- do.call("rbind",t_split$train1)
 
 training <- rbind(training,training1)
 
-#There is a problem here that if all of the values for a chunk are NA this is converted them to NaN.  
-#If I set them to 0 then it will throw off the calcs by biasing them towards zero
-
-#training[training == NaN] <- 0
-
-
-
 rm(training1)
 
 validate <- do.call("rbind",t_split$validate)
 
-#validate[validate == NaN] <- 0
 
-#Remove columns with constant variances (zero) because they will stop you from doing PCA
-
-#training <- training[,apply(training[,startCol:endCol], 2, var, na.rm=TRUE) != 0]
 
 ###################################################################################################################
 
@@ -207,27 +192,36 @@ validate <- do.call("rbind",t_split$validate)
 
 ###################################################################################################################
 
-#training[training == 0] <- NA
+#Week 2 - Preprocessing with principle components analysis
 
 #Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
-#Have to rerun this
+#Remove columns that are entirely 0 since that adds no value
+training <- training[, colSums(is.na(training)) != nrow(training)]
+
 startCol <- which( colnames(training)=="num_window") + 1
 
 endCol <- ncol(training)-1
 
-# Having issues getting the principle components from this data.  x must be numeric, probably the NA's 
+#function to look for nan in data.frame, http://stackoverflow.com/questions/18142117/how-to-replace-nan-value-with-zero-in-a-huge-data-frame
+is.nan.data.frame <- function(x)
+  do.call(cbind, lapply(x, is.nan))
 
+#Replace NaN with something really small  
+training[is.nan(training)] <- 0.00001
 
-# training.2 <- data.frame(t(na.omit(t(training))))
-# 
-# pca.training.2 <- prcomp(training.2[,3:35], retx=TRUE)
-# 
-prComp <-prcomp(training[,startCol:endCol])
-# 
-# preProc <- preProcess(training[,startCol:endCol], method="pca",pcaComp=2)
-# 
-# trainingPC <- predict(preProc, log10(training[,startCol:endCol]))
-# 
-# plot(preProc$x[,1],preProc$x[,2],col=typeColor,xlab="PC1",ylab="PC2")
+# Have to use the code below to get around the NaN and NA values 
+preProc <- prcomp(~ ., data=training[,startCol:endCol], center = TRUE, scale=TRUE, na.action = na.omit)
+
+#preProc <- prcomp(na.omit(training), center = TRUE, scale = TRUE)
+trainingPC <- predict(preProc, training[,startCol:endCol])
+
+ 
+#plot(preProc$x[,1],preProc$x[,2],xlab="PC1",ylab="PC2", col=training$classe)
+
+modelFit <- train(training$classe ~ ., method = "rpart", data = trainingPC)
+
+testPC <- predict(preProc,validate[startCol:endCol])
+
+confusionMatrix(validate$classe,predict(modelFit,testPC))
