@@ -198,7 +198,7 @@ validate <- do.call("rbind",t_split$validate)
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
 #Remove columns that are entirely 0 since that adds no value
-training <- training[, colSums(is.na(training)) != nrow(training)]
+#training <- training[, colSums(is.na(training)) != nrow(training)]
 
 startCol <- which( colnames(training)=="num_window") + 1
 
@@ -222,6 +222,15 @@ trainingPC <- predict(preProc, training[,startCol:endCol])
 
 modelFit <- train(training$classe ~ ., method = "rpart", data = trainingPC)
 
-testPC <- predict(preProc,validate[startCol:endCol])
+
+# Shouldn't have to do this so maybe think about how to change it
+validate <- training[, colSums(is.na(validate)) != nrow(validate)]
+validate[is.nan(validate)] <- 0.00001
+
+testPC <- predict(preProc,validate[,startCol:endCol])
 
 confusionMatrix(validate$classe,predict(modelFit,testPC))
+
+
+names(validate[,startCol:endCol])
+names(training[,startCol:endCol])
