@@ -56,19 +56,15 @@ ActPred <- function() {
   
 }
 
-
-
 # Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in ???ve di???erent fashions: exactly according to the speci???cation (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Class A corresponds to the speci???ed execution of the exercise, while the other 4 classes correspond to common mistakes.
 #Remove not needed columns
 
 
 #Replace all zeroes with NA to make sure they are not evaluated and to help remove columns that don't add value
-#Remove columns that are entirely NA since that adds no value
-
-training[training == 0] <- NA
+#training[training == 0] <- NA
 
 #Remove columns that are entirely NA since that adds no value
-training <- training[, colSums(is.na(training)) != nrow(training)]
+#training <- training[, colSums(is.na(training)) != nrow(training)]
 
 #Replace NA with zero 
 #training[is.na(training)] <- 0
@@ -85,6 +81,7 @@ options("digits.secs"=7)
 
 #Convert Milliseconds
 training$raw_timestamp_part_2 <- training$raw_timestamp_part_2/1000000
+
 
 #Convert timestamps 
 training$cvtd_timestamp <-  
@@ -105,6 +102,27 @@ training$cvtd_timestamp <-
     "GMT"
   )
 
+#Not sure what else to do here besides convert the test data timestamps as well
+testing$raw_timestamp_part_2 <- testing$raw_timestamp_part_2/1000000
+
+#Convert timestamps 
+testing$cvtd_timestamp <-  
+  
+  as.POSIXct(
+    
+    strftime(
+      
+      strptime(
+        
+        format(as.POSIXlt(testing$raw_timestamp_part_1, origin="1970-01-01")
+               , tz="GMT",usetz = TRUE),
+        
+        format="%Y-%m-%d%H:%M:%S")
+      
+      + (testing$raw_timestamp_part_2),format="%Y-%m-%d %H:%M:%OS6"),
+    
+    "GMT"
+  )
 
 
 ############################################################################################################################
@@ -195,7 +213,7 @@ validate <- do.call("rbind",t_split$validate)
 #Week 2 - Preprocessing with principle components analysis
 
 #Remove columns that are entirely NA since that adds no value
-training <- training[, colSums(is.na(training)) != nrow(training)]
+# training <- training[, colSums(is.na(training)) != nrow(training)]
 
 #Remove columns that are entirely 0 since that adds no value
 #training <- training[, colSums(is.na(training)) != nrow(training)]
@@ -211,26 +229,65 @@ is.nan.data.frame <- function(x)
 #Replace NaN with something really small  
 training[is.nan(training)] <- 0.00001
 
-# Have to use the code below to get around the NaN and NA values 
-preProc <- prcomp(~ ., data=training[,startCol:endCol], center = TRUE, scale=TRUE, na.action = na.omit)
-
-#preProc <- prcomp(na.omit(training), center = TRUE, scale = TRUE)
-trainingPC <- predict(preProc, training[,startCol:endCol])
-
- 
-#plot(preProc$x[,1],preProc$x[,2],xlab="PC1",ylab="PC2", col=training$classe)
-
-modelFit <- train(training$classe ~ ., method = "rpart", data = trainingPC)
 
 
-# Shouldn't have to do this so maybe think about how to change it
-validate <- training[, colSums(is.na(validate)) != nrow(validate)]
+
+# Create model with default paramters  
+# http://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+seed <- 7
+metric <- "Accuracy"
+set.seed(seed)
+mtry <- sqrt(ncol(training))
+tunegrid <- expand.grid(.mtry=mtry)
+rf_default <- train(training$classe~., data=training, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
+print(rf_default)
+
+#The NaN values will throw an error if you don't handle them
 validate[is.nan(validate)] <- 0.00001
 
-testPC <- predict(preProc,validate[,startCol:endCol])
 
-confusionMatrix(validate$classe,predict(modelFit,testPC))
+confusionMatrix(validate$classe,predict(rf_default,validate))
 
 
-names(validate[,startCol:endCol])
-names(training[,startCol:endCol])
+
+# otherwise you get an error that 'all arguments must have the same length'
+#testing <- testing[, colSums(is.na(testing)) != nrow(testing)]
+testing[is.na(testing)] <- 0
+
+
+#There are WAY more variables in the training data set then there are in the testing one.  
+predict(rf_default,testing)
+
+#THIS IS CAUSING AN ERROR 'all arguments must have the same length'
+confusionMatrix(training$classe,predict(rf_default,testing))
+
+#setdiff(names(training),names(testing))
+
+
+
+# 
+# # Have to use the code below to get around the NaN and NA values 
+# preProc <- prcomp(~ ., data=training[,startCol:endCol], center = TRUE, scale=TRUE, na.action = na.omit)
+# 
+# #preProc <- prcomp(na.omit(training), center = TRUE, scale = TRUE)
+# trainingPC <- predict(preProc, training[,startCol:endCol])
+# 
+#  
+# #plot(preProc$x[,1],preProc$x[,2],xlab="PC1",ylab="PC2", col=training$classe)
+# 
+# #library(e1071)
+# 
+# modelFit <- train(training$classe ~ ., method = "rf",data = trainingPC)
+# 
+# finMod <- modelFit$finalModel
+# 
+# 
+# testPC <- predict(preProc,validate[,startCol:endCol])
+# 
+# confusionMatrix(validate$classe,predict(rf_default,validate))
+# 
+# 
+# names(validate[,startCol:endCol])
+# names(training[,startCol:endCol])
