@@ -319,7 +319,21 @@ inTrain <- createDataPartition(y=training$user_name,
 training <- training[inTrain,]
 validate <- training[-inTrain,]
 
+# Identify highly correlated variables
+# M <- abs(cor(training[,8:150]))
+# diag(M) <- 0
+# which(M > .8, arr.ind = T)
+# 
+# prComp <- prcomp(training[,8:150])
 
+# prComp$rotation
+ 
+
+prComp <- preProcess(training[,8:150],method="pca", pcaComp = 12)
+
+trainPC <- predict(prComp,training)
+
+plot(trainPC[,1],trainPC[,2],col=trainPC$classe)
 
 
 
@@ -370,13 +384,15 @@ metric <- "Accuracy"  #or RMSE for continuous?
 set.seed(seed)
 mtry <- sqrt(ncol(training))
 tunegrid <- expand.grid(.mtry=mtry)
-rf_default <- train(training$classe~., data=na.omit(training), method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
+rf_default <- train(training$classe~., data=trainPC, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
 print(rf_default)
 
 print(rf_default$finalModel)
 
 # An attempt at a random forest without altering any parameters (same as above since I am using the defaults)
-rf_default <- train(training$classe~.,data=training, method="rf", prox = TRUE)
+# Building in the PCA to this training model
+# Might need to add the transform to the data first (log 10 or boxcox)
+rf_default <- train(training$classe~.,data=training, method="rf",preProcess="pca", prox = TRUE)
 
  
 
@@ -402,7 +418,7 @@ confusionMatrix(validate$classe,predict(rf_default,validate))
 ##########################################
 
 #This model returns a very nice accuracy (97%)
-modgbm <- train(training$classe ~ ., data = training, method = "gbm", verbose=FALSE)
+modgbm <- train(training$classe ~ ., data = trainPC, method = "gbm", verbose=FALSE)
 
 #predGBM <- predict(modgbm,validate)
 
