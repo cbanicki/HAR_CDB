@@ -76,6 +76,91 @@ ActPred <- function() {
   
 }
 
+############################################################################################################################
+# Plotting Predictors
+############################################################################################################################
+# library(caret)
+# library(ggplot2)
+# 
+# #What does the training data look like?
+# summary(training)
+# 
+# dim(training)
+# 
+# #How many in each classe?
+# library(Hmisc)
+# 
+# cutTrain <- cut2(training$classe, g = 5)
+# 
+# table(cutTrain)
+# 
+# p1 <- qplot(cutTrain,user_name, data=training, fill=cutTrain, geom=c("boxplot"))
+# 
+# p2 <- qplot(cutTrain,user_name, data=training, fill=cutTrain, geom=c("boxplot","jitter"))
+# 
+# t1 <- table(cutTrain,training$classe)
+# 
+# t1
+# 
+# # Get proportions
+# prop.table(t1,1)
+# grid.arrange(p1,p2,ncol=2)
+# 
+# 
+# #Density Plot
+# 
+# qplot(training$classe,color=training$classe,data=training,geom="density")
+
+############################################################################################################################
+#Preprocessing
+############################################################################################################################
+#Examples
+
+#preOb <- preProcess(training[,-58],method=c("center","scale"))
+#trainCapAveS <- predict(predObj,training[,-58])$capitalAve
+#mean(trainCapAveS)
+#sd(trainCapAves)
+
+#testCapAveS <- predict(preObj,testing[,-58])$captialAve
+#mean(testCapAveS)
+
+# OR 
+
+# set.seed(124)
+# modelFit <- train(classe ~ ., data = training, 
+#                   preProcess=c("center","scale"), metho="glm")
+
+
+############################################################################################################################
+#Imputing Data
+#Center and Scale
+#Remove zero variance columns
+############################################################################################################################
+
+#training[is.na(training)] <- NA
+
+#Remove columns that are entirely NA since that adds no value
+training <- training[, colSums(is.na(training)) != nrow(training)]
+
+#ncol(training)
+
+#Impute NA values with nearest value, and automatically centers and scales the data as well
+preObj <- preProcess(training[,8:153],method=c("knnImpute"))  
+
+library(RANN)
+
+#add pre processed data to data frame
+trainingImp <- predict(preObj,newdata = training[,8:153])
+
+#join it back together to get metadata
+trainingNew <-  cbind(training[,1:7],trainingImp,training[154])
+
+# quantile(trainingNew[,8:153] - na.omit(training)[,8:153])
+
+
+#These variables have zero variances so remove them from the data
+training <- trainingNew[,-c(which(colnames(training)%in%c('amplitude_yaw_belt', 'amplitude_yaw_dumbbell', 'amplitude_yaw_forearm')))]
+
 
 
 ############################################################################################################################
@@ -136,96 +221,105 @@ testing$cvtd_timestamp <-
 
 ############################################################################################################################
 
-#Remove columns that are mainly NA.  I didn't have this included at first but decided to add it to speed up the processing 
+#Remove columns that are mainly 0.  I didn't have this included at first but decided to add it to speed up the processing 
 #and see if the accuracy is still acceptable
 
 ############################################################################################################################
 
 trainRows <- nrow(training)
 
-training[is.na(training)] <- 0
+#training[is.na(training)] <- 0
 
 #Remove columns where more than half the values are zero
 training <- training[, colSums(training != 0) > trainRows/2] 
 
 
+# 
+# ############################################################################################################################
+# # Not currently using this section - would like to be able to, however.
+# #Splitting the data into chunks based on user_name and classe.  The goal is to have a separate data object for each set. 
+# #I want this because the classe is assigned at the set level and not the row of the data.
+# #Also, for the rows that are NA because they are summary amounts, taking the average for that set and applying it to each row.
+# 
+# ############################################################################################################################
+# 
+# library(mlbench)
+# 
+# 
+# #Break the data up into time-series chunks (30 element list, 6 users X 5 Classes..each element a set of 10 repetitions)
+# #The splits are in order of user_name and classe (A-E)
+# #Doing this, rather than just random sampling from the data, in order to keep related data together since 'classe' is assigned at the set level (and not rep).
+# 
+# set.seed(1000)
+# 
+# TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
+# 
+# 
+# startCol <- which( colnames(training)=="num_window") + 1
+# 
+# endCol <- ncol(training)-1
+# 
+# #Set the numeric columns to a mean value when they are NA in each chunk
+# avgNAs <- function(Chunk){
+# 
+# 
+#   
+#   for(i in startCol: endCol){
+#     
+#     Chunk[is.na(Chunk[,i]), i] <- mean(Chunk[,i], na.rm = TRUE)
+#  
+#     }
+#   
+#   return(Chunk)
+#   
+# 
+# }
+# 
+# TrainNew <- lapply(TrainChunks,avgNAs)
+# 
+# 
+# 
+# # Mix up the chunks randomly so they are not in order of user_name and Classe
+# TrainNew <- sample(TrainNew)
+# 
+# 
+# # Create groups for training and validating    
+# groups = sample(c("train", "train1","validate"),
+#                 size = length(TrainNew), replace = TRUE)
+#  
+# 
+# # Split up the chunked data into groups, one for training and one for validation        
+# t_split <- split(TrainNew,f=groups)
+# 
+# 
+# 
+# # Unsplit the groups assign the data back to a data frame 
+# # Maybe a better way to do this but I don't know it
+# 
+# training <- do.call("rbind",t_split$train)
+# 
+# training1 <- do.call("rbind",t_split$train1)
+# 
+# training <- rbind(training,training1)
+# 
+# rm(training1)
+# 
+# validate <- do.call("rbind",t_split$validate)
+# 
 
-############################################################################################################################
-
-#Splitting the data into chunks based on user_name and classe.  The goal is to have a separate data object for each set. 
-#I want this because the classe is assigned at the set level and not the row of the data.
-#Also, for the rows that are NA because they are summary amounts, taking the average for that set and applying it to each row.
-
-############################################################################################################################
-
-library(mlbench)
-library(caret)
-
-#Break the data up into time-series chunks (30 element list, 6 users X 5 Classes..each element a set of 10 repetitions)
-#The splits are in order of user_name and classe (A-E)
-#Doing this, rather than just random sampling from the data, in order to keep related data together since 'classe' is assigned at the set level (and not rep).
-
-set.seed(1000)
-
-TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
 
 
-startCol <- which( colnames(training)=="num_window") + 1
+###################################################################################################################
+#Create the data partitions 
+###################################################################################################################
 
-endCol <- ncol(training)-1
+inTrain <- createDataPartition(y=training$user_name,
+                               p=0.75, list=FALSE)
 
-#Set the numeric columns to a mean value when they are NA in each chunk
-avgNAs <- function(Chunk){
-
-
-  
-  for(i in startCol: endCol){
-    
-    Chunk[is.na(Chunk[,i]), i] <- mean(Chunk[,i], na.rm = TRUE)
- 
-    }
-  
-  return(Chunk)
-  
-
-}
-
-TrainNew <- lapply(TrainChunks,avgNAs)
+training <- training[inTrain,]
+validate <- training[-inTrain,]
 
 
-
-# Mix up the chunks randomly so they are not in order of user_name and Classe
-TrainNew <- sample(TrainNew)
-
-
-# Create groups for training and validating    
-groups = sample(c("train", "train1","validate"),
-                size = length(TrainNew), replace = TRUE)
- 
-
-# Split up the chunked data into groups, one for training and one for validation        
-t_split <- split(TrainNew,f=groups)
-
-
-##################################################################################################################
-
-#Should I train a model on each of the groups now and then combine them?  Maybe that way it can be a ts analysis?
-
-##################################################################################################################
-
-
-# Unsplit the groups assign the data back to a data frame 
-# Maybe a better way to do this but I don't know it
-
-training <- do.call("rbind",t_split$train)
-
-training1 <- do.call("rbind",t_split$train1)
-
-training <- rbind(training,training1)
-
-rm(training1)
-
-validate <- do.call("rbind",t_split$validate)
 
 
 
@@ -235,8 +329,10 @@ validate <- do.call("rbind",t_split$validate)
 
 ###################################################################################################################
 
+#There are too many columns so need to improve this section before 
+#running the model
 
-startCol <- which( colnames(training)=="num_window") + 1
+startCol <- which( colnames(training)=="num_window") + 1 
 
 endCol <- ncol(training)-1
 
@@ -264,13 +360,13 @@ endCol <- ncol(training)-1
 
 
 ###################################################################################################################
-# Create model with default paramters  
+# Create Random Forest model (with default parameters)  
 # http://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 ###################################################################################################################
 
 control <- trainControl(method="repeatedcv", number=10, repeats=3)
 seed <- 7
-metric <- "Accuracy"
+metric <- "Accuracy"  #or RMSE for continuous?
 set.seed(seed)
 mtry <- sqrt(ncol(training))
 tunegrid <- expand.grid(.mtry=mtry)
@@ -279,17 +375,76 @@ print(rf_default)
 
 print(rf_default$finalModel)
 
+# An attempt at a random forest without altering any parameters (same as above since I am using the defaults)
+rf_default <- train(training$classe~.,data=training, method="rf", prox = TRUE)
 
-predVal <- predict(rf_default,validate)
-
-table(validate$classe, predVal) # OR confusionMatrix(validate$classe,predict(rf_default,validate))
+ 
 
 
+#predVal <- predict(rf_default,validate)
+
+#table(validate$classe, predVal) 
+
+confusionMatrix(validate$classe,predict(rf_default,validate))
+
+#predVal
+
+# Accuracy : 0.0771 
+
+
+###################################################################################################################
+# Trying Model Based Predictions 
+###################################################################################################################
+
+###########################################
+# Boosting MOdels
+#GBM
+##########################################
+
+#This model returns a very nice accuracy (97%)
+modgbm <- train(training$classe ~ ., data = training, method = "gbm", verbose=FALSE)
+
+#predGBM <- predict(modgbm,validate)
+
+#table(validate$classe, predGBM) 
+
+confusionMatrix(validate$classe,predict(modgbm,validate))
+# 
+# Accuracy : 0.9792  
+
+predGBM <- predict(modgbm,validate)
+
+predGBM
+ 
+# [1] A A A A A A A A A A A A A A A A A A A A
+# Levels: A B C D E
+
+##############################################
+# Naive Bayes
+#############################################
+
+# modnb <- train(training$classe ~ ., data = training, method = "nb")
+# 
+# confusionMatrix(validate$classe,predict(modnb,validate))
+# 
+# # 
+# # This model has a very poor Accuracy : 0.0314   
+
+
+table(predVal,predGBM)
+
+
+
+###################################################################################################################
 #Can't run a confusion matrix against the testing data because the 'Classe' is not in that data set
+###################################################################################################################
+predict(rf_default,testing)
+# [1] B A A A A A A A A D A A B A A A B A B B
 
-pred <- predict(rf_default,testing)
+predict(modgbm,testing)
+# [1] A A A A A A A A A A A A A A A A A A A A
+ 
 
-pred
-
-
+##Expected
+##  [1] B A B A A E D B A A B C B A E E A B B B
 
