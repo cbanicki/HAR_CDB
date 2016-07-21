@@ -114,23 +114,27 @@ ActPred <- function() {
 ############################################################################################################################
 #Preprocessing
 ############################################################################################################################
-#Examples
-
-#preOb <- preProcess(training[,-58],method=c("center","scale"))
-#trainCapAveS <- predict(predObj,training[,-58])$capitalAve
-#mean(trainCapAveS)
-#sd(trainCapAves)
-
-#testCapAveS <- predict(preObj,testing[,-58])$captialAve
-#mean(testCapAveS)
-
-# OR 
-
-# set.seed(124)
-# modelFit <- train(classe ~ ., data = training, 
-#                   preProcess=c("center","scale"), metho="glm")
 
 
+
+#Remove columns that are entirely NA since that adds no value
+training <- training[, colSums(is.na(training)) != nrow(training)]
+
+testing <- testing[, colSums(is.na(testing)) != nrow(testing)]
+
+
+# colnames(training)
+# colnames(testing)
+
+#test to see that they have all of the same column names.  
+#this might be close to 'over-fitting', but if the testing set doesn't have any data on these columnns they 
+#might as well not even have them.
+
+training <- cbind(training[, which(colnames(training)%in% colnames(testing))],
+           training$classe)
+
+#Not sure how else to do this
+colnames(training)[which(names(training) == "training$classe")] <- "classe"
 ############################################################################################################################
 #Imputing Data
 #Center and Scale
@@ -139,27 +143,35 @@ ActPred <- function() {
 
 #training[is.na(training)] <- NA
 
-#Remove columns that are entirely NA since that adds no value
-training <- training[, colSums(is.na(training)) != nrow(training)]
 
 #ncol(training)
 
 #Impute NA values with nearest value, and automatically centers and scales the data as well
-preObj <- preProcess(training[,8:153],method=c("knnImpute"))  
+preObj <- preProcess(training[,8:ncol(training)],method=c("knnImpute"))  
+
+preObjTest <- preProcess(testing[,8:ncol(testing)],mecthod=c("knnImpute"))  
 
 library(RANN)
 
 #add pre processed data to data frame
-trainingImp <- predict(preObj,newdata = training[,8:153])
+trainingImp <- predict(preObj,newdata = training[,8:ncol(training)-1])
+
+testImp <- predict(preObjTest,newdata = testing[,8:ncol(testing)])
 
 #join it back together to get metadata
-trainingNew <-  cbind(training[,1:7],trainingImp,training[154])
+trainingNew <-  cbind(training[,1:7],trainingImp,training[ncol(training)])
+
+testNew <-  cbind(testing[,1:7],testImp)
+
+
+training <- trainingNew
+testing <- testNew
 
 # quantile(trainingNew[,8:153] - na.omit(training)[,8:153])
 
 
-#These variables have zero variances so remove them from the data
-training <- trainingNew[,-c(which(colnames(training)%in%c('amplitude_yaw_belt', 'amplitude_yaw_dumbbell', 'amplitude_yaw_forearm')))]
+# #These variables have zero variances so remove them from the data
+# training <- training[,-c(which(colnames(training)%in%c('amplitude_yaw_belt', 'amplitude_yaw_dumbbell', 'amplitude_yaw_forearm')))]
 
 
 
@@ -232,6 +244,11 @@ trainRows <- nrow(training)
 
 #Remove columns where more than half the values are zero
 training <- training[, colSums(training != 0) > trainRows/2] 
+
+testRow <- nrow(testing)
+
+#Remove columns where more than half the values are zero
+testing <- testing[, colSums(testing != 0) > testRow/2] 
 
 
 # 
@@ -329,11 +346,30 @@ validate <- training[-inTrain,]
 # prComp$rotation
  
 
-prComp <- preProcess(training[,8:150],method="pca", pcaComp = 12)
+
+training <- cbind(training[, which(colnames(training)%in% colnames(testing))],
+                  training$classe)
+
+#Not sure how else to do this
+colnames(training)[which(names(training) == "training$classe")] <- "classe"
+
+
+
+
+
+
+
+
+
+prComp <- preProcess(training[,8:ncol(training)-1],method="pca", pcaComp = 12)
 
 trainPC <- predict(prComp,training)
 
-plot(trainPC[,1],trainPC[,2],col=trainPC$classe)
+validatePC <- predict(prComp,validate)
+
+testPC <- predict(prComp,testing)
+
+#plot(trainPC[,1],trainPC[,2],col=trainPC$classe)
 
 
 
@@ -392,16 +428,16 @@ print(rf_default$finalModel)
 # An attempt at a random forest without altering any parameters (same as above since I am using the defaults)
 # Building in the PCA to this training model
 # Might need to add the transform to the data first (log 10 or boxcox)
-rf_default <- train(training$classe~.,data=training, method="rf",preProcess="pca", prox = TRUE)
+#rf_default <- train(training$classe~.,data=training, method="rf",preProcess="pca", prox = TRUE)
 
  
 
 
-#predVal <- predict(rf_default,validate)
+predVal <- predict(rf_default,validatePC)
 
 #table(validate$classe, predVal) 
 
-confusionMatrix(validate$classe,predict(rf_default,validate))
+confusionMatrix(validate$classe,predict(rf_default,validatePC))
 
 #predVal
 
@@ -424,11 +460,11 @@ modgbm <- train(training$classe ~ ., data = trainPC, method = "gbm", verbose=FAL
 
 #table(validate$classe, predGBM) 
 
-confusionMatrix(validate$classe,predict(modgbm,validate))
+confusionMatrix(validate$classe,predict(modgbm,validatePC))
 # 
 # Accuracy : 0.9792  
 
-predGBM <- predict(modgbm,validate)
+predGBM <- predict(modgbm,validatePC)
 
 predGBM
  
@@ -454,10 +490,11 @@ table(predVal,predGBM)
 ###################################################################################################################
 #Can't run a confusion matrix against the testing data because the 'Classe' is not in that data set
 ###################################################################################################################
-predict(rf_default,testing)
+
+predict(rf_default,testPC)
 # [1] B A A A A A A A A D A A B A A A B A B B
 
-predict(modgbm,testing)
+predict(modgbm,testPC)
 # [1] A A A A A A A A A A A A A A A A A A A A
  
 
