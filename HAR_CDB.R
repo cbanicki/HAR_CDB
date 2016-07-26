@@ -1,22 +1,12 @@
 
+#Summary
 
-
-############################################################################################################################
-
-
-# Summary
-
-# Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in ???ve di???erent fashions: exactly according to the speci???cation (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Class A corresponds to the speci???ed execution of the exercise, while the other 4 classes correspond to common mistakes.
+#Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in ???ve di???erent fashions: exactly according to the speci???cation (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Class A corresponds to the speci???ed execution of the exercise, while the other 4 classes correspond to common mistakes.
 #Remove not needed columns
 
-############################################################################################################################
-
-
 
 ############################################################################################################################
-
-# Reading the data
-
+#Reading the data
 ############################################################################################################################
 
 ActPred <- function() {
@@ -76,13 +66,11 @@ ActPred <- function() {
   
 }
 
-
 ############################################################################################################################
 #Preprocessing
 ############################################################################################################################
 
 library(caret)
-
 
 #Only removing ones that are NA in training to avoid over fitting concerns
 testing <- testing[, colSums(is.na(training)) != nrow(training)]
@@ -91,42 +79,13 @@ testing <- testing[, colSums(is.na(training)) != nrow(training)]
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
 
-############################################################################################################################
-#Imputing Data
-#Center and Scale
-#Remove zero variance columns
-############################################################################################################################
+#Remove columns that are mainly 0. 
+training <- training[, which(as.numeric(colSums(training != 0)) > nrow(training)/2)] 
+
+testing <- testing[, which(as.numeric(colSums(testing != 0)) > nrow(testing)/2)] 
 
 
-#Impute NA values with nearest value, and automatically centers and scales the data as well
-#This could also just be done in the caret package in the train method
-
-preObj <- preProcess(training[,8:ncol(training)-1],method=c("knnImpute"))  
-
-preObjTest <- preProcess(testing[,8:ncol(testing)-1],method=c("knnImpute"))  
-
-
-############################################################################################################################
-
-#Remove columns that are mainly 0.  I didn't have this included at first but decided to add it to speed up the processing 
-#and see if the accuracy is still acceptable
-
-############################################################################################################################
-
-trainRows <- nrow(training)
-
-#Remove columns where more than half the values are zero
-training <- training[, which(as.numeric(colSums(training != 0)) > trainRows/2)] 
-
-testRows <- nrow(testing)
-
-testing <- testing[, which(as.numeric(colSums(testing != 0)) > testRows/2)] 
-
-
-###################################################################################################################
 #Create the data partitions 
-###################################################################################################################
-
 inTrain <- createDataPartition(y=training$user_name,
                                p=0.75, list=FALSE)
 
@@ -148,8 +107,7 @@ testPC <- predict(prComp,testing[,8:ncol(testing)-1])
 
 
 ###################################################################################################################
-# Create Random Forest model (with default parameters)  
-# http://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+#Create Random Forest model (with default parameters)  
 ###################################################################################################################
 
 rf_default <- train(training$classe ~ ., method = "rf", data = trainPC, trControl = trainControl(method = "CV", number = 4), importance = TRUE)
