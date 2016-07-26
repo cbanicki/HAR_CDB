@@ -76,159 +76,34 @@ ActPred <- function() {
   
 }
 
-############################################################################################################################
-# Plotting Predictors
-############################################################################################################################
-# library(caret)
-# library(ggplot2)
-# 
-# #What does the training data look like?
-# summary(training)
-# 
-# dim(training)
-# 
-# #How many in each classe?
-# library(Hmisc)
-# 
-# cutTrain <- cut2(training$classe, g = 5)
-# 
-# table(cutTrain)
-# 
-# p1 <- qplot(cutTrain,user_name, data=training, fill=cutTrain, geom=c("boxplot"))
-# 
-# p2 <- qplot(cutTrain,user_name, data=training, fill=cutTrain, geom=c("boxplot","jitter"))
-# 
-# t1 <- table(cutTrain,training$classe)
-# 
-# t1
-# 
-# # Get proportions
-# prop.table(t1,1)
-# grid.arrange(p1,p2,ncol=2)
-# 
-# 
-# #Density Plot
-# 
-# qplot(training$classe,color=training$classe,data=training,geom="density")
 
 ############################################################################################################################
 #Preprocessing
 ############################################################################################################################
 
+library(caret)
 
+
+#Only removing ones that are NA in training to avoid over fitting concerns
+testing <- testing[, colSums(is.na(training)) != nrow(training)]
 
 #Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
-testing <- testing[, colSums(is.na(testing)) != nrow(testing)]
 
-
-# colnames(training)
-# colnames(testing)
-
-#test to see that they have all of the same column names.  
-#this might be close to 'over-fitting', but if the testing set doesn't have any data on these columnns they 
-#might as well not even have them.
-
-training <- cbind(training[, which(colnames(training)%in% colnames(testing))],
-           training$classe)
-
-#Not sure how else to do this
-colnames(training)[which(names(training) == "training$classe")] <- "classe"
 ############################################################################################################################
 #Imputing Data
 #Center and Scale
 #Remove zero variance columns
 ############################################################################################################################
 
-#training[is.na(training)] <- NA
-
-
-#ncol(training)
 
 #Impute NA values with nearest value, and automatically centers and scales the data as well
-preObj <- preProcess(training[,8:ncol(training)],method=c("knnImpute"))  
+#This could also just be done in the caret package in the train method
 
-preObjTest <- preProcess(testing[,8:ncol(testing)],mecthod=c("knnImpute"))  
+preObj <- preProcess(training[,8:ncol(training)-1],method=c("knnImpute"))  
 
-library(RANN)
-
-#add pre processed data to data frame
-trainingImp <- predict(preObj,newdata = training[,8:ncol(training)-1])
-
-testImp <- predict(preObjTest,newdata = testing[,8:ncol(testing)])
-
-#join it back together to get metadata
-trainingNew <-  cbind(training[,1:7],trainingImp,training[ncol(training)])
-
-testNew <-  cbind(testing[,1:7],testImp)
-
-
-training <- trainingNew
-testing <- testNew
-
-# quantile(trainingNew[,8:153] - na.omit(training)[,8:153])
-
-
-# #These variables have zero variances so remove them from the data
-# training <- training[,-c(which(colnames(training)%in%c('amplitude_yaw_belt', 'amplitude_yaw_dumbbell', 'amplitude_yaw_forearm')))]
-
-
-
-############################################################################################################################
-
-# Preserving the timestamp data.  
-# Had to go through all of these steps because for some reason I couldn't just combine the two timestamps to get the valid date info
-
-############################################################################################################################
-
-#Make milliseconds display
-options("digits.secs"=7)
-
-#Convert Milliseconds
-training$raw_timestamp_part_2 <- training$raw_timestamp_part_2/1000000
-
-
-#Convert timestamps 
-training$cvtd_timestamp <-  
-  
-  as.POSIXct(
-    
-    strftime(
-      
-      strptime(
-        
-        format(as.POSIXlt(training$raw_timestamp_part_1, origin="1970-01-01")
-               , tz="GMT",usetz = TRUE),
-        
-        format="%Y-%m-%d%H:%M:%S")
-      
-      + (training$raw_timestamp_part_2),format="%Y-%m-%d %H:%M:%OS6"),
-    
-    "GMT"
-  )
-
-#Not sure what else to do here besides convert the test data timestamps as well
-testing$raw_timestamp_part_2 <- testing$raw_timestamp_part_2/1000000
-
-#Convert timestamps 
-testing$cvtd_timestamp <-  
-  
-  as.POSIXct(
-    
-    strftime(
-      
-      strptime(
-        
-        format(as.POSIXlt(testing$raw_timestamp_part_1, origin="1970-01-01")
-               , tz="GMT",usetz = TRUE),
-        
-        format="%Y-%m-%d%H:%M:%S")
-      
-      + (testing$raw_timestamp_part_2),format="%Y-%m-%d %H:%M:%OS6"),
-    
-    "GMT"
-  )
+preObjTest <- preProcess(testing[,8:ncol(testing)-1],method=c("knnImpute"))  
 
 
 ############################################################################################################################
@@ -240,90 +115,12 @@ testing$cvtd_timestamp <-
 
 trainRows <- nrow(training)
 
-#training[is.na(training)] <- 0
-
 #Remove columns where more than half the values are zero
-training <- training[, colSums(training != 0) > trainRows/2] 
+training <- training[, which(as.numeric(colSums(training != 0)) > trainRows/2)] 
 
-testRow <- nrow(testing)
+testRows <- nrow(testing)
 
-#Remove columns where more than half the values are zero
-testing <- testing[, colSums(testing != 0) > testRow/2] 
-
-
-# 
-# ############################################################################################################################
-# # Not currently using this section - would like to be able to, however.
-# #Splitting the data into chunks based on user_name and classe.  The goal is to have a separate data object for each set. 
-# #I want this because the classe is assigned at the set level and not the row of the data.
-# #Also, for the rows that are NA because they are summary amounts, taking the average for that set and applying it to each row.
-# 
-# ############################################################################################################################
-# 
-# library(mlbench)
-# 
-# 
-# #Break the data up into time-series chunks (30 element list, 6 users X 5 Classes..each element a set of 10 repetitions)
-# #The splits are in order of user_name and classe (A-E)
-# #Doing this, rather than just random sampling from the data, in order to keep related data together since 'classe' is assigned at the set level (and not rep).
-# 
-# set.seed(1000)
-# 
-# TrainChunks <- split( training , f = paste(training$user_name,training$classe ))
-# 
-# 
-# startCol <- which( colnames(training)=="num_window") + 1
-# 
-# endCol <- ncol(training)-1
-# 
-# #Set the numeric columns to a mean value when they are NA in each chunk
-# avgNAs <- function(Chunk){
-# 
-# 
-#   
-#   for(i in startCol: endCol){
-#     
-#     Chunk[is.na(Chunk[,i]), i] <- mean(Chunk[,i], na.rm = TRUE)
-#  
-#     }
-#   
-#   return(Chunk)
-#   
-# 
-# }
-# 
-# TrainNew <- lapply(TrainChunks,avgNAs)
-# 
-# 
-# 
-# # Mix up the chunks randomly so they are not in order of user_name and Classe
-# TrainNew <- sample(TrainNew)
-# 
-# 
-# # Create groups for training and validating    
-# groups = sample(c("train", "train1","validate"),
-#                 size = length(TrainNew), replace = TRUE)
-#  
-# 
-# # Split up the chunked data into groups, one for training and one for validation        
-# t_split <- split(TrainNew,f=groups)
-# 
-# 
-# 
-# # Unsplit the groups assign the data back to a data frame 
-# # Maybe a better way to do this but I don't know it
-# 
-# training <- do.call("rbind",t_split$train)
-# 
-# training1 <- do.call("rbind",t_split$train1)
-# 
-# training <- rbind(training,training1)
-# 
-# rm(training1)
-# 
-# validate <- do.call("rbind",t_split$validate)
-# 
-
+testing <- testing[, which(as.numeric(colSums(testing != 0)) > testRows/2)] 
 
 
 ###################################################################################################################
@@ -336,77 +133,18 @@ inTrain <- createDataPartition(y=training$user_name,
 training <- training[inTrain,]
 validate <- training[-inTrain,]
 
-# Identify highly correlated variables
-# M <- abs(cor(training[,8:150]))
-# diag(M) <- 0
-# which(M > .8, arr.ind = T)
-# 
-# prComp <- prcomp(training[,8:150])
-
-# prComp$rotation
- 
-
-
-training <- cbind(training[, which(colnames(training)%in% colnames(testing))],
-                  training$classe)
-
-#Not sure how else to do this
-colnames(training)[which(names(training) == "training$classe")] <- "classe"
-
-
-
-
-
-
-
-
-
-prComp <- preProcess(training[,8:ncol(training)-1],method="pca", pcaComp = 12)
-
-trainPC <- predict(prComp,training)
-
-validatePC <- predict(prComp,validate)
-
-testPC <- predict(prComp,testing)
-
-#plot(trainPC[,1],trainPC[,2],col=trainPC$classe)
-
-
 
 ###################################################################################################################
-
-#Pick attributes to use for model (Principle Component Analysis)
-
+#Identify Principle Components
 ###################################################################################################################
 
-#There are too many columns so need to improve this section before 
-#running the model
+prComp <- preProcess(training[,8:ncol(training)-1],method="pca", thresh = 0.99 )
 
-startCol <- which( colnames(training)=="num_window") + 1 
+trainPC <- predict(prComp,training[,8:ncol(training)-1])
 
-endCol <- ncol(training)-1
+validatePC <- predict(prComp,validate[,8:ncol(validate)-1])
 
-
-###################################################################################################################
-
-# Uncomment this section if you do not pair down the columns to remove mostly NA's
-
-###################################################################################################################
-#function to look for nan in data.frame, http://stackoverflow.com/questions/18142117/how-to-replace-nan-value-with-zero-in-a-huge-data-frame
-# is.nan.data.frame <- function(x)
-#   do.call(cbind, lapply(x, is.nan))
-# 
-# #Replace NaN with something really small  
-# training[is.nan(training)] <- 0.00001
-
-#The NaN values will throw an error if you don't handle them
-# validate[is.nan(validate)] <- 0.00001
-# 
-# validate[is.na(validate)] <- 0
-
-# otherwise you get an error that 'all arguments must have the same length'
-#testing <- testing[, colSums(is.na(testing)) != nrow(testing)]
-#testing[is.na(testing)] <- 0
+testPC <- predict(prComp,testing[,8:ncol(testing)-1])
 
 
 ###################################################################################################################
@@ -414,90 +152,22 @@ endCol <- ncol(training)-1
 # http://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 ###################################################################################################################
 
-control <- trainControl(method="repeatedcv", number=10, repeats=3)
-seed <- 7
-metric <- "Accuracy"  #or RMSE for continuous?
-set.seed(seed)
-mtry <- sqrt(ncol(training))
-tunegrid <- expand.grid(.mtry=mtry)
-rf_default <- train(training$classe~., data=trainPC, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
-print(rf_default)
-
-print(rf_default$finalModel)
-
-# An attempt at a random forest without altering any parameters (same as above since I am using the defaults)
-# Building in the PCA to this training model
-# Might need to add the transform to the data first (log 10 or boxcox)
-#rf_default <- train(training$classe~.,data=training, method="rf",preProcess="pca", prox = TRUE)
-
- 
-
+rf_default <- train(training$classe ~ ., method = "rf", data = trainPC, trControl = trainControl(method = "CV", number = 4), importance = TRUE)
 
 predVal <- predict(rf_default,validatePC)
 
-#table(validate$classe, predVal) 
-
-confusionMatrix(validate$classe,predict(rf_default,validatePC))
-
-#predVal
-
-# Accuracy : 0.0771 
+confusionMatrix(validate$classe,predVal)
 
 
 ###################################################################################################################
-# Trying Model Based Predictions 
+#Final Prediction
 ###################################################################################################################
-
-###########################################
-# Boosting MOdels
-#GBM
-##########################################
-
-#This model returns a very nice accuracy (97%)
-modgbm <- train(training$classe ~ ., data = trainPC, method = "gbm", verbose=FALSE)
-
-#predGBM <- predict(modgbm,validate)
-
-#table(validate$classe, predGBM) 
-
-confusionMatrix(validate$classe,predict(modgbm,validatePC))
-# 
-# Accuracy : 0.9792  
-
-predGBM <- predict(modgbm,validatePC)
-
-predGBM
  
-# [1] A A A A A A A A A A A A A A A A A A A A
+predTestFinal <- predict(rf_default,testPC) 
+
+predTestFinal
+# [1] B A B A A E D B A A B C B A E E A B B B
 # Levels: A B C D E
 
-##############################################
-# Naive Bayes
-#############################################
-
-# modnb <- train(training$classe ~ ., data = training, method = "nb")
-# 
-# confusionMatrix(validate$classe,predict(modnb,validate))
-# 
-# # 
-# # This model has a very poor Accuracy : 0.0314   
-
-
-table(predVal,predGBM)
-
-
-
-###################################################################################################################
-#Can't run a confusion matrix against the testing data because the 'Classe' is not in that data set
-###################################################################################################################
-
-predict(rf_default,testPC)
-# [1] B A A A A A A A A D A A B A A A B A B B
-
-predict(modgbm,testPC)
-# [1] A A A A A A A A A A A A A A A A A A A A
  
-
-##Expected
-##  [1] B A B A A E D B A A B C B A E E A B B B
 
