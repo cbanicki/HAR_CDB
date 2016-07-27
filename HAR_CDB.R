@@ -88,6 +88,13 @@ testing <- testing[, which(as.numeric(colSums(training != 0)) > nrow(training)/2
 training <- training[, which(as.numeric(colSums(training != 0)) > nrow(training)/2)] 
 
 
+
+#Quick look at the training data classes by density
+qplot(training$classe,color=training$classe,data=training,geom="density")
+
+#Might be interesting to see if the predictions reflect the relative distributions of this plot
+#such that the counts of A > B > C > D > E.
+
 #Create the data partitions for training and validation based on the orginal training data set
 inTrain <- createDataPartition(y=training$user_name,
                                p=0.75, list=FALSE)
@@ -97,11 +104,22 @@ validate <- training[-inTrain,]
 
 
 #Graph correlation matrix for attributes in training data set
+#Lots of strong correlations between roll belt and acceleration belts
 library(qtlcharts)
 
 iplotCorr(training[,8:37], reorder=TRUE)
 
+#Look at fields with at least .9 correlation
+corFields <- findCorrelation(cor(training[,8:59]), names = TRUE, cutoff = .90, verbose = FALSE)
+corFields
+removeCor <- c("accel_belt_z","accel_belt_y","gyros_dumbbell_x")
 
+# [1] "accel_belt_z"     "roll_belt"        "accel_belt_y"     "accel_belt_x"     "gyros_dumbbell_x"
+# [6] "gyros_dumbbell_z" "gyros_arm_x"
+
+#Keep one of each of the correlated pairs of fields and remove the others
+training <- training[,!(names(training) %in% removeCor)]
+testing <- testing[,!(names(testing) %in% removeCor)]
 
 ###################################################################################################################
 #Identify Principle Components
@@ -169,5 +187,15 @@ predTestFinal <- predict(rf_default,testPC)
 predTestFinal
 # [1] B A B A A E D B A A B C B A E E A B B B
 # Levels: A B C D E
+
+#7 A 
+#8 B 
+#1 C
+#1 D
+#3 E
  
+
+# #Density Plot
+# 
+  qplot(training$classe,color=training$classe,data=training,geom="density")
 
