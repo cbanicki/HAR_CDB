@@ -5,6 +5,10 @@
 #Remove not needed columns
 
 
+# You should create a report describing how you built your model, 
+#how you used cross validation, 
+#what you think the expected out of sample error is
+
 ############################################################################################################################
 #Reading the data
 ############################################################################################################################
@@ -72,20 +76,19 @@ ActPred <- function() {
 
 library(caret)
 
-#Only removing ones that are NA in training to avoid over fitting concerns
+#Remove columns in testing and training that are entirely NA (in training)  
 testing <- testing[, colSums(is.na(training)) != nrow(training)]
 
-#Remove columns that are entirely NA since that adds no value
 training <- training[, colSums(is.na(training)) != nrow(training)]
 
 
-#Remove columns that are mainly 0. 
+#Remove columns in testing and training that are mainly 0 (in training)  
+testing <- testing[, which(as.numeric(colSums(training != 0)) > nrow(training)/2)] 
+
 training <- training[, which(as.numeric(colSums(training != 0)) > nrow(training)/2)] 
 
-testing <- testing[, which(as.numeric(colSums(testing != 0)) > nrow(testing)/2)] 
 
-
-#Create the data partitions 
+#Create the data partitions for training and validation based on the orginal training data set
 inTrain <- createDataPartition(y=training$user_name,
                                p=0.75, list=FALSE)
 
@@ -93,28 +96,68 @@ training <- training[inTrain,]
 validate <- training[-inTrain,]
 
 
+#Graph correlation matrix for attributes in training data set
+library(qtlcharts)
+
+iplotCorr(training[,8:37], reorder=TRUE)
+
+
+
 ###################################################################################################################
 #Identify Principle Components
 ###################################################################################################################
 
-prComp <- preProcess(training[,8:ncol(training)-1],method="pca", thresh = 0.99 )
+#Estimate Principle Components (PCA) based on training data
+prComp <- preProcess(training[,8:ncol(training)-1],method="pca")
 
+#Calculate Principle Compoent values for training data
 trainPC <- predict(prComp,training[,8:ncol(training)-1])
 
+#Calculate Principle Component values for validate data, based on training PCA's
 validatePC <- predict(prComp,validate[,8:ncol(validate)-1])
 
+#Calculate Principle Component values for test data, based on training PCA's
 testPC <- predict(prComp,testing[,8:ncol(testing)-1])
 
 
 ###################################################################################################################
-#Create Random Forest model (with default parameters)  
+#Create Random Forest model 
 ###################################################################################################################
 
-rf_default <- train(training$classe ~ ., method = "rf", data = trainPC, trControl = trainControl(method = "CV", number = 4), importance = TRUE)
+#Create Random Forest Model with Cross Validation method with 4 folds.
+#Normally use something like (method="repeatedcv", number=10, repeats=3) for repeated
+#But it takes a long time  to process and doesn't improve accuracy that much for this model
+rf_default <- train(training$classe ~ ., method = "rf", data = trainPC, trControl = trainControl(method = "CV", number = 4), importance = T)
 
+
+#The more predictors the less accuracy?
+plot(rf_default, metric = "Accuracy")
+
+#97.1% accuracy, compared to 98.2% in the actual study
+rf_default
+
+#Predict values in validation data based on Random Forest Model Created
 predVal <- predict(rf_default,validatePC)
 
-confusionMatrix(validate$classe,predVal)
+#Show confusion matrix for the predictions to check accuracy and error rates
+predValConf <- confusionMatrix(predVal, validate$classe)
+
+#Show accuracy for the validation predictions
+predValConf$overall["Accuracy"]
+
+# Graph Importance of principle components 
+varImpPlot(rf_default$finalModel, sort = TRUE, type = 1, pch = 19, col = 1, cex = 1,
+           main = "Variable Importance Plot")
+
+
+
+#https://dinsdalelab.sdsu.edu/metag.stats/code/trees.html
+library(tree)
+rf.tree <- tree(training$classe~., trainPC[,1:25])
+rf.tree.best <- prune.tree(rf.tree, best=10)
+plot(rf.tree.best)
+text(rf.tree.best, cex=.5)
+#dev.off()
 
 
 ###################################################################################################################
@@ -126,6 +169,5 @@ predTestFinal <- predict(rf_default,testPC)
 predTestFinal
 # [1] B A B A A E D B A A B C B A E E A B B B
 # Levels: A B C D E
-
  
 
