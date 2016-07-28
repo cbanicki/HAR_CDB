@@ -13,7 +13,8 @@ output:
 ### Overview
 
 
-A group of 6 participants each performed a set of 10 repetitions using a small dumbell weight.  The repetitions were performed according to different specification and assigned a 'classe' such that a participant in: 
+
+A group of 6 participants each performed a set of 10 repetitions using a small dumbell weight.  The repetitions were performed according to different specifications and assigned a 'classe' such that a participant in: 
 
 * Classe A - Correctly performed the repetition
 * Classe B - Threw the elbow to the front 
@@ -25,8 +26,8 @@ Using on-body sensing devices, time-series data were collected for 17 features i
 
 The exercise data are divided into two sets:
 
-> Training data - in which the 'classe' has been provided.
-> Testing data, - in which the 'classe' has been ommited. 
+* > Training data - in which the 'classe' has been provided.
+* > Testing data, - in which the 'classe' has been ommited. 
 
 
 **The goal of this assignment is to constuct a model that will correctly predict the classe of a each dumbell repitition in the *Testing* data.** 
@@ -123,7 +124,7 @@ testing <- ActPred(0)
 
 The training data set contains **`r nrow(training)`** rows and **`r ncol(training)`** columns.  Upon a quick look at the distribution of *'classe'* in *(Appendix, Figure-1)*, it appears that the  counts of classe A > classe B > classe C > clasee D > classe E.  If the testing data is a random sample (and large enough), we might expect a similar distribution.
 
-
+*** 
 
 #### Metadata Descriptions for Dimensions in the Training Data
 
@@ -164,7 +165,7 @@ It often improves accuracy and reduces processing time to remove data that are:
 
 ####Create Data Parition
 
-The existing training data set was partitioned to simulate a new testing data set. A randomly selected 1/3 subset of original training set was allocated to create this *'validation'*  data set.  The validation set was used to test the model predictions before being applied to the testing data set, helping to prevent over-fitting of the model.  In this case, it was also necessary because we don't know what the actual classe values are in the testing set. 
+The existing training data set was partitioned to simulate a new testing data set. A randomly selected 1/3 subset of original training set was allocated to create a *'validation'*  data set.  The validation set was used to test the model predictions before being applied to the testing data set, helping to prevent over-fitting of the model. 
 
 
 ```{r chunk2, echo=FALSE, warning=FALSE,message=FALSE}  
@@ -347,7 +348,8 @@ qplot(training$classe,color=training$classe,data=training,geom="density", main =
 #Lots of strong correlations between roll belt and acceleration belts
 library(qtlcharts)
 
-iplotCorr(training[,8:37], reorder=TRUE, main="Correlation matrix (Figure-2)")
+iplotCorr(training[,8:37], reorder=TRUE,chartOpts=list(cortitle="Correlation matrix (Figure-2)",
+                         scattitle="Scatterplot"))
 
 
 ```
@@ -367,7 +369,8 @@ varImpPlot(rf_default$finalModel, sort = TRUE, type = 1, pch = 19, col = 1, cex 
 library(tree)
 rf.tree <- tree(training$classe~., trainPC[,1:25])
 rf.tree.best <- prune.tree(rf.tree, best=10)
-plot(rf.tree.best,  main="Decision Tree - (Figure - 4)")
+plot(rf.tree.best)
+title(main="Decision Tree - (Figure - 4)")
 text(rf.tree.best, cex=.5)
 #dev.off()
     
