@@ -12,8 +12,7 @@
 ############################################################################################################################
 #Reading the data
 ############################################################################################################################
-
-ActPred <- function() {
+ActPred <- function(i) {
   
   setwd("C://R//MachineLearning//Assignment")
   
@@ -59,10 +58,15 @@ ActPred <- function() {
     
     finally={
       
-      ## Read tracking data 
-      training <- read.csv("pml-training.csv", header = TRUE,na.strings = c("NA","#DIV/0!",""))
+      ifelse(i==1, 
+             ## Read tracking data 
+             testTrain <- read.csv("pml-training.csv", header = TRUE,na.strings = c("NA","#DIV/0!","")),
+             
+             testTrain <- read.csv("pml-testing.csv", header = TRUE, na.strings = c("NA","#DIV/0!",""))
+      )
       
-      testing <- read.csv("pml-testing.csv", header = TRUE, na.strings = c("NA","#DIV/0!",""))
+      
+      return(testTrain)
       
     }
     
@@ -70,11 +74,40 @@ ActPred <- function() {
   
 }
 
+training <- ActPred(1)
+
+testing <- ActPred(0)
+
+
+library(knitr)
+
+Desc <- c("Row Number","Athlete","Date", "Time (in milliseconds)", "Combined Date/Time", "Start of New Repetition",
+          "Start of New Set", "Quality of Repetition")
+
+Field <- c(names(training[1:7]),names(training[160]))
+
+FieldNames <- names(training[names(training) %in% Field])
+
+Field_name <- "Field Name"
+
+Desc_name <- "Field Description"
+
+df <- data.frame(FieldNames,Desc)
+
+names(df) <- c(Field_name,Desc_name )
+
+kable(df, digits=2)
+
 ############################################################################################################################
 #Preprocessing
 ############################################################################################################################
 
 library(caret)
+
+
+metaData <- c("Row Number","Athlete","Date", "Time (milliseconds)", "Combined Date/Time", "Start of New Repitition",
+              "Start of New Set")
+
 
 #Remove columns in testing and training that are entirely NA (in training)  
 testing <- testing[, colSums(is.na(training)) != nrow(training)]
@@ -125,7 +158,7 @@ testing <- testing[,!(names(testing) %in% removeCor)]
 #Identify Principle Components
 ###################################################################################################################
 
-#Estimate Principle Components (PCA) based on training data
+#Estimate Principle Components (PCA) based on training data, as well as centering/scaling the data
 prComp <- preProcess(training[,8:ncol(training)-1],method="pca")
 
 #Calculate Principle Compoent values for training data
