@@ -1,5 +1,5 @@
 ---
-title: "<center>Practical Machine Learning Assignment</center>"
+title: "<center>Practical Machine Learning</center>"
 output:
   html_document:
     keep_md: yes
@@ -122,7 +122,7 @@ testing <- ActPred(0)
 ```
 
 
-The training data set contains **`r nrow(training)`** rows and **`r ncol(training)`** columns.  Upon a quick look at the distribution of *'classe'* in *(Appendix, Figure-1)*, it appears that the  counts of classe A > classe B > classe C > clasee D > classe E.  If the testing data is a random sample (and large enough), we might expect a similar distribution.
+The training data set contains **`r nrow(training)`** rows and **`r ncol(training)`** columns.  Upon a quick look at the distribution of *'classe'* *(see Appendix, Figure-1)*, it appears that the  counts of classe A > classe B > classe C > classe D > classe E.  If the testing data are a random sample (and large enough), we might expect a similar distribution.
 
 *** 
 
@@ -165,7 +165,7 @@ It often improves accuracy and reduces processing time to remove data that are:
 
 ####Create Data Parition
 
-The existing training data set was partitioned to simulate a new testing data set. A randomly selected 1/3 subset of original training set was allocated to create a *'validation'*  data set.  The validation set was used to test the model predictions before being applied to the testing data set, helping to prevent over-fitting of the model. 
+The existing training data set was partitioned to simulate a new testing data set. A randomly selected 30% subset of original training set was allocated to create a *'validation'*  data set.  The validation set was used to test the model predictions before being applied to the testing data set, helping to prevent over-fitting of the model. 
 
 
 ```{r chunk2, echo=FALSE, warning=FALSE,message=FALSE}  
@@ -175,6 +175,11 @@ The existing training data set was partitioned to simulate a new testing data se
 ############################################################################################################################
 
 library(caret)
+
+#Remove the first 7 columns as they are not used in this analysis
+training[1:7] <- list(NULL) 
+testing[1:7] <- list(NULL)
+
 
 #Remove columns in testing and training that are entirely NA (in training)  
 testing <- testing[, colSums(is.na(training)) != nrow(training)]
@@ -188,16 +193,9 @@ testing <- testing[, which(as.numeric(colSums(training != 0)) > nrow(training)/2
 training <- training[, which(as.numeric(colSums(training != 0)) > nrow(training)/2)] 
 
 
-#Create the data partitions for training and validation based on the orginal training data set
-inTrain <- createDataPartition(y=training$user_name,
-                               p=0.75, list=FALSE)
-
-training <- training[inTrain,]
-validate <- training[-inTrain,]
-
 
 #Look at fields with at least .9 correlation
-corFields <- findCorrelation(cor(training[,8:59]), names = TRUE, cutoff = .90, verbose = FALSE)
+corFields <- findCorrelation(cor(training[,1:ncol(training)-1]), names = TRUE, cutoff = .90, verbose = FALSE)
 #corFields
 removeCor <- c("accel_belt_z","accel_belt_y","gyros_dumbbell_x")
 
@@ -207,13 +205,23 @@ removeCor <- c("accel_belt_z","accel_belt_y","gyros_dumbbell_x")
 #Keep one of each of the correlated pairs of fields and remove the others
 training <- training[,!(names(training) %in% removeCor)]
 testing <- testing[,!(names(testing) %in% removeCor)]
+
+
+#Create the data partitions for training and validation based on the orginal training data set
+inTrain <- createDataPartition(y=training$classe,
+                               p=0.70, list=FALSE)
+
+trainNew <- training[inTrain,]
+valNew <- training[-inTrain,]
+
+
     
 ```
 
 
-After preprocessing and partitioning the data sets, the training data set now has '**`r ncol(training)`**' columns and '**`r nrow(training)`**' rows and the new validation data set has '**`r ncol(validate)`**' columns and '**`r nrow(validate)`**' rows.  The testing data set has '**`r ncol(testing)`**' columns, with the rows count remaining unchanged at '**`r nrow(testing)`**'.  It is worth mentioning that the columns removed from the testing data set were based upon conditions in the training data set (i.e. correlated, 'NA, and zero values). 
+After preprocessing and partitioning the data sets, the training data set now has '**`r ncol(trainNew)`**' columns and '**`r nrow(trainNew)`**' rows and the new validation data set has '**`r ncol(valNew)`**' columns and '**`r nrow(valNew)`**' rows.  The testing data set has '**`r ncol(testing)`**' columns, with the rows count remaining unchanged at '**`r nrow(testing)`**'.  It is worth mentioning that the columns removed from the testing data set were based upon conditions in the training data set (i.e. correlated, 'NA, and zero values). 
 
-A correlation matrix *(Appendix, Figure-2)* shows the relative correlations between the attributes in the training data.
+A correlation matrix *(see Appendix, Figure-2)* shows the relative correlations between the attributes in the training data.
 
 
 ### Principle Component Analysis
@@ -232,21 +240,21 @@ An analysis of the most influential data in the training data set helped to iden
 ###################################################################################################################
 
 #Estimate Principle Components (PCA) based on training data, as well as centering/scaling the data
-prComp <- preProcess(training[,8:ncol(training)-1],method="pca")
+prComp <- preProcess(trainNew[,1:ncol(trainNew)-1],method="pca", thresh = 0.99)
 
 #Calculate Principle Compoent values for training data
-trainPC <- predict(prComp,training[,8:ncol(training)-1])
+trainPC <- predict(prComp,trainNew[,1:ncol(trainNew)-1])
 
 #Calculate Principle Component values for validate data, based on training PCA's
-validatePC <- predict(prComp,validate[,8:ncol(validate)-1])
+validatePC <- predict(prComp,valNew[,1:ncol(valNew)-1])
 
 #Calculate Principle Component values for test data, based on training PCA's
-testPC <- predict(prComp,testing[,8:ncol(testing)-1])
+testPC <- predict(prComp,testing[,1:ncol(testing)-1])
 
     
 ```
 
-The principle component analysis was able to capture '**`r prComp$thresh`**' percent of the variance with just '**`r prComp$numComp`**' components. A Variable Importance Plot *(Appendix, Figure-3)* shows the relative importance of these components, as well as the accuracy that would be lost in the model if that component was ommitted. A Classification Tree Plot  *(Appendix, Figure-4)* helps vizualize the rules for predicting outcomes based on the principle compoents. 
+The principle component analysis was able to capture '**`r prComp$thresh`**' percent of the variance with just '**`r prComp$numComp`**' components. A Variable Importance Plot *(see Appendix, Figure-3)* shows the relative importance of these components, as well as the accuracy that would be lost in the model if that component was ommitted. A Classification Tree Plot  *(see Appendix, Figure-4)* helps vizualize the rules for predicting outcomes based on the principle compoents. 
 
 ###Random Forest Prediction Model
 
@@ -263,7 +271,7 @@ Random Forest model was chosen for it's accuracy and ease of use in classificati
 #Normally use something like (method="repeatedcv", number=10, repeats=3) for repeated
 #But it takes a long time  to process and doesn't improve accuracy that much for this model
 
-rf_default <- train(training$classe ~ ., method = "rf", data = trainPC, trControl = trainControl(method = "CV", number = 4), importance = T)
+rf_default <- train(trainNew$classe ~ ., method = "rf", data = trainPC, trControl = trainControl(method = "CV", number = 4), importance = T)
 
 
 #97.1% accuracy, compared to 98.2% in the actual study
@@ -273,19 +281,19 @@ rf_default
 predVal <- predict(rf_default,validatePC)
 
 #Show confusion matrix for the predictions to check accuracy and error rates
-predValConf <- confusionMatrix(predVal, validate$classe)
+predValConf <- confusionMatrix(valNew$classe,predVal)
 
+predValConf$table
 #Show accuracy for the validation predictions
 #predValConf$overall["Accuracy"]
+
 
 
 ```
 
       
-The overall accuracy of this simple model was '**`r rf_default$results[1,2]`**' which is pretty good considering the original study produced 98.2% accuracy. See [Qualitative Activity Recognition of Weight Lifting Exercise](http://groupware.les.inf.puc-rio.br/public/papers/2012.Ugulino.WearableComputing.HAR.Classifier.RIBBON.pdf "Activity Recognition Study")
-The accuracy of the prediction against the validation data was '**`r predValConf$overall["Accuracy"]`**'.
-
-
+The overall accuracy of this simple model was '**`r rf_default$results[1,2]`**' which is pretty good considering the original study produced 98.2% accuracy, (See [Qualitative Activity Recognition of Weight Lifting Exercise](http://groupware.les.inf.puc-rio.br/public/papers/2012.Ugulino.WearableComputing.HAR.Classifier.RIBBON.pdf "Activity Recognition Study")).
+Remarkably, the accuracy of the prediction against the validation data was '**`r predValConf$overall["Accuracy"]`**' with  '**`r 1- predValConf$overall["Accuracy"]`**' percent out of sample error.
 
 
 ```{r chunk5, echo=FALSE, warning=FALSE,message=FALSE}  
@@ -348,7 +356,7 @@ qplot(training$classe,color=training$classe,data=training,geom="density", main =
 #Lots of strong correlations between roll belt and acceleration belts
 library(qtlcharts)
 
-iplotCorr(training[,8:37], reorder=TRUE,chartOpts=list(cortitle="Correlation matrix (Figure-2)",
+iplotCorr(trainNew[,1:ncol(trainNew)-1], reorder=TRUE,chartOpts=list(cortitle="Correlation matrix (Figure-2)",
                          scattitle="Scatterplot"))
 
 
@@ -367,7 +375,7 @@ varImpPlot(rf_default$finalModel, sort = TRUE, type = 1, pch = 19, col = 1, cex 
 
 #https://dinsdalelab.sdsu.edu/metag.stats/code/trees.html
 library(tree)
-rf.tree <- tree(training$classe~., trainPC[,1:25])
+rf.tree <- tree(trainNew$classe~., trainPC[,1:35])
 rf.tree.best <- prune.tree(rf.tree, best=10)
 plot(rf.tree.best)
 title(main="Decision Tree - (Figure - 4)")
