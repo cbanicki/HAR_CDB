@@ -221,7 +221,7 @@ valNew <- training[-inTrain,]
 
 After preprocessing and partitioning the data sets, the training data set now has '**`r ncol(trainNew)`**' columns and '**`r nrow(trainNew)`**' rows and the new validation data set has '**`r ncol(valNew)`**' columns and '**`r nrow(valNew)`**' rows.  The testing data set has '**`r ncol(testing)`**' columns, with the rows count remaining unchanged at '**`r nrow(testing)`**'.  It is worth mentioning that the columns removed from the testing data set were based upon conditions in the training data set (i.e. correlated, 'NA, and zero values). 
 
-A correlation matrix *(see Appendix, Figure-2)* shows the relative correlations between the attributes in the training data.
+A correlation matrix *(see Appendix, Figure-2)* shows the relative correlations between the attributes in the training data.  In this graph, only those fields with at least a .50 correlation to another field are shown.
 
 
 ### Principle Component Analysis
@@ -354,10 +354,18 @@ qplot(training$classe,color=training$classe,data=training,geom="density", main =
   
 #Graph correlation matrix for attributes in training data set
 #Lots of strong correlations between roll belt and acceleration belts
-library(qtlcharts)
 
-iplotCorr(trainNew[,1:ncol(trainNew)-1], reorder=TRUE,chartOpts=list(cortitle="Correlation matrix (Figure-2)",
-                         scattitle="Scatterplot"))
+library('corrplot')
+
+corFieldsNew <- findCorrelation(cor(trainNew[,1:ncol(trainNew)-1]), names = TRUE, cutoff = .50, verbose = FALSE)
+corNew <- cor(trainNew[corFieldsNew])
+corrplot(corNew, title="Correlation matrix (Figure-2)", method = "color") #plot matrix
+
+# Love this chart but it's too memory intensive 
+# library(qtlcharts)
+# 
+# iplotCorr(trainNew[,1:ncol(trainNew)-1], reorder=TRUE,chartOpts=list(cortitle="Correlation matrix (Figure-2)",
+#                          scattitle="Scatterplot"))
 
 
 ```
