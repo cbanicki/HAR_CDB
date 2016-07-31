@@ -134,8 +134,8 @@ The dimension found in the data are described in the table, below.
 
 library(knitr)
       
-Desc <- c("Row Number","Participant Name","Date", "Time (in milliseconds)", "Combined Date/Time", "Start of New Repetition",
-              "Start of New Set", "Quality of Repetition")
+Desc <- c("--> Row Number","--> Participant Name","--> Date", "--> Time (in milliseconds)", "--> Combined Date/Time", "--> Start of New Repetition",
+              "--> Start of New Set", "--> Quality of Repetition")
 
 Field <- c(names(training[1:7]),names(training[160]))
 
@@ -325,9 +325,6 @@ The final prediction against the testing data was '**`r predTestFinal`**'
 
 Even a relatively simple Random Forest model appeared to be very effective at predicting the classe of the repetitions. Increasing the number of repeats and folds in the random forest showed some improvement but dramatically increased the processing time. Removing the highly correlated fields did not have a significant impact on the model accuracy in this case.  Another GBM (boosted model) was tried with similar results *(Addendum, R Code)*.  
 
-Perhaps an interesting note is that despite the fact that the dumbell repetitions are measured in a time-series; the 'classe' is assigned to the entire repetition.  For example, it may be possible that a number of rows of the time-series data (measured in milliseconds) are preformed correctly (classe A), but because of a mistake later in the repetition, those rows received a lower classe.  Even with this potential issue, the prediction model worked well and didn't require a time-series analysis.
-
-
 
 
 
@@ -476,6 +473,10 @@ text(rf.tree.best, cex=.5)
 # # Not currently using this section - would like to be able to, however.
 # #Splitting the data into chunks based on user_name and classe.  The goal is to have a separate data object for each set. 
 # #I want this because the classe is assigned at the set level and not the row of the data.
+
+# 
+# Perhaps an interesting note is that despite the fact that the dumbell repetitions are measured in a #time-series; the 'classe' is assigned to the entire repetition.  For example, it may be possible that #a number of rows of the time-series data (measured in milliseconds) are preformed correctly (classe #A), but because of a mistake later in the repetition, those rows received a lower classe.  Even with #this potential issue, the prediction model worked well and didn't require a time-series analysis.
+
 # 
 # ############################################################################################################################
 # 

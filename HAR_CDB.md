@@ -45,16 +45,16 @@ The training data set contains **19,622** rows and **160** columns.  Upon a quic
 The dimension found in the data are described in the table, below.
 
 
-Field Name             Field Description       
----------------------  ------------------------
-X                      Row Number              
-user_name              Participant Name        
-raw_timestamp_part_1   Date                    
-raw_timestamp_part_2   Time (in milliseconds)  
-cvtd_timestamp         Combined Date/Time      
-new_window             Start of New Repetition 
-num_window             Start of New Set        
-classe                 Quality of Repetition   
+Field Name             Field Description           
+---------------------  ----------------------------
+X                      --> Row Number              
+user_name              --> Participant Name        
+raw_timestamp_part_1   --> Date                    
+raw_timestamp_part_2   --> Time (in milliseconds)  
+cvtd_timestamp         --> Combined Date/Time      
+new_window             --> Start of New Repetition 
+num_window             --> Start of New Set        
+classe                 --> Quality of Repetition   
 
 
 ####Preprocess the data
@@ -105,13 +105,13 @@ Random Forest model was chosen for it's accuracy and ease of use in classificati
 ## 
 ## No pre-processing
 ## Resampling: Cross-Validated (4 fold) 
-## Summary of sample sizes: 10302, 10302, 10304, 10303 
+## Summary of sample sizes: 10304, 10302, 10302, 10303 
 ## Resampling results across tuning parameters:
 ## 
 ##   mtry  Accuracy  Kappa  Accuracy SD  Kappa SD
-##    2    0.971     0.963  0.00376      0.00476 
-##   18    0.963     0.953  0.00431      0.00546 
-##   35    0.956     0.944  0.00158      0.00199 
+##    2    0.970     0.963  0.00341      0.00432 
+##   18    0.965     0.955  0.00235      0.00298 
+##   35    0.956     0.944  0.00307      0.00388 
 ## 
 ## Accuracy was used to select the optimal model using  the largest value.
 ## The final value used for the model was mtry = 2.
@@ -120,11 +120,11 @@ Random Forest model was chosen for it's accuracy and ease of use in classificati
 ```
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1670    2    1    1    0
-##          B   31 1094   13    0    1
-##          C    2   18  998    7    1
-##          D    3    0   38  921    2
-##          E    2    5    6    2 1067
+##          A 1670    2    1    0    1
+##          B   17 1110   11    0    1
+##          C    3    7 1010    6    0
+##          D    3    0   40  919    2
+##          E    0    3    8    4 1067
 ```
 
       
@@ -134,20 +134,17 @@ Remarkably, the accuracy of the prediction against the validation data was '**0.
 
 
 ```
-##  [1] B A B A A E D B A A B C B A E E A B B B
+##  [1] B A A A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E
 ```
       
       
-The final prediction against the testing data was '**BABAAEDBAABCBAEEABBB**'
+The final prediction against the testing data was '**BAAAAEDBAABCBAEEABBB**'
 
 
 ###Executive Summary
 
 Even a relatively simple Random Forest model appeared to be very effective at predicting the classe of the repetitions. Increasing the number of repeats and folds in the random forest showed some improvement but dramatically increased the processing time. Removing the highly correlated fields did not have a significant impact on the model accuracy in this case.  Another GBM (boosted model) was tried with similar results *(Addendum, R Code)*.  
-
-Perhaps an interesting note is that despite the fact that the dumbell repetitions are measured in a time-series; the 'classe' is assigned to the entire repetition.  For example, it may be possible that a number of rows of the time-series data (measured in milliseconds) are preformed correctly (classe A), but because of a mistake later in the repetition, those rows received a lower classe.  Even with this potential issue, the prediction model worked well and didn't require a time-series analysis.
-
 
 
 
@@ -501,6 +498,10 @@ text(rf.tree.best, cex=.5)
 # # Not currently using this section - would like to be able to, however.
 # #Splitting the data into chunks based on user_name and classe.  The goal is to have a separate data object for each set. 
 # #I want this because the classe is assigned at the set level and not the row of the data.
+
+# 
+# Perhaps an interesting note is that despite the fact that the dumbell repetitions are measured in a #time-series; the 'classe' is assigned to the entire repetition.  For example, it may be possible that #a number of rows of the time-series data (measured in milliseconds) are preformed correctly (classe #A), but because of a mistake later in the repetition, those rows received a lower classe.  Even with #this potential issue, the prediction model worked well and didn't require a time-series analysis.
+
 # 
 # ############################################################################################################################
 # 
